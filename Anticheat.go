@@ -70,6 +70,7 @@ type Process interface {
 
 var ProcessID int
 var UserName string
+var UserID string
 var discord *discordgo.Session
 var ChannelID = ""
 var AlertsChannel = ""
@@ -143,24 +144,25 @@ func main() {
 		CloseTerminal()
 	}
 	UserName = userObject.Username
+	UserID = userObject.ID
 
 
 	fmt.Println("\n\nYou have successfully been authenticated!")
 	fmt.Println("------------------{TOURNAMENT DETAILS}-----------------------")
-	fmt.Printf("Username: %s\n", UserName)
+	fmt.Printf("Username: %s (ID: %s)\n", UserName, UserID)
 	fmt.Printf("Tournament: %s\n", TournamentName)
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("You may proceed to play your game now..")
-	msg := fmt.Sprintf("[CONNECTION] User %s has connected!", UserName)
+	msg := fmt.Sprintf("[CONNECTION] User %s(ID: %s) has connected!", UserName, UserID)
 	discord.ChannelMessageSend(AlertsChannel, msg)
 
 	if _, err := os.Stat(PathToCheck); err == nil {
-		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" has a cheating software installed on their computer! Path: "+PathToCheck+"")
+		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!")
 	}
 
 	files, _ := filepath.Glob(PathToCheck2)
 	if files != nil{
-		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" has a cheating software installed on their computer! Path: "+files[0]+"")
+		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!")
 	}
 
 
@@ -170,7 +172,7 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 
-	discord.ChannelMessageSend(AlertsChannel, "[CONNECTION] User "+UserName+" has disconnected!")
+	discord.ChannelMessageSend(AlertsChannel, "[CONNECTION] User "+UserName+" (ID: "+UserID+") has disconnected!")
 	// Cleanly close down the Discord session.
 	discord.Close()
 }
@@ -180,10 +182,10 @@ func pingServer(){
 	pings := 0
 	for range tick {
 		if isGameRunning() == "Not running"{
-			fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game before starting the tool!")
+			fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game again!")
 		}
 		pings += 1
-		formattedMsg := fmt.Sprintf("[PING] User %s has sent a ping! Total pings: %d. Game running: %s", UserName, pings, isGameRunning())
+		formattedMsg := fmt.Sprintf("[PING] User %s (ID: %s) has sent a ping! Total pings: %d. Game running: %s", UserName, UserID, pings, isGameRunning())
 		discord.ChannelMessageSend(ChannelID, formattedMsg)
 		fmt.Println("Pinging the server...")
 	}
@@ -328,7 +330,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	if m.Content == "closeconnection "+UserName+"" && m.Author.ID == "266947686194741248" {
 
-		s.ChannelMessageSend(ChannelID, "[CONNECTION] Closed the connection for user "+UserName+"")
+		s.ChannelMessageSend(ChannelID, "[CONNECTION] Closed the connection for user "+UserName+" (ID: "+UserID+")")
 		discord.Close()
 		fmt.Println("The application has been closed by the server!")
 		CloseTerminal()
@@ -341,7 +343,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 func OnProcessInjected(injectedID int, injecterID int){
 
 	if injectedID == ProcessID {
-		discord.ChannelMessageSend(ChannelID, "User "+UserName+" has injected a third party software into their game!")
+		discord.ChannelMessageSend(ChannelID, "User "+UserName+" (ID: "+UserID+") has injected a third party software into their game!")
 	}
 
 }
