@@ -2,12 +2,15 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/inconshreveable/go-update"
 	"github.com/mitchellh/go-ps"
 	"golang.org/x/sys/windows"
-	"image/png"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -67,28 +70,150 @@ type Process interface {
 	Executable() string
 }
 
-
-var ProcessID int
-var UserName string
-var UserID string
 var discord *discordgo.Session
-var ChannelID = ""
-var AlertsChannel = ""
 var PathToCheck = ""
 var PathToCheck2 = ""
 var BotToken = ""
-var Splitter = ""
-var SplitterIndex = 0
-var chProcess = ""
-var TournamentName = ""
+var DoPing = true
 
+//game info
+var chProcess = ""
+var ProcessID int
+
+//local user info
+var UserID string
+var UserName string
+var ClientVersion = "1.0.0"
+
+//server info
+var ServerID = ""
+var ServerChannel = ""
+
+//tourney info
+var TournamentName = ""
+var TournamentServer = ""
+var TournamentOrganizer = ""
+var ChannelID = ""
+var AlertsChannel = ""
+
+
+//mysql config
+var MySql_Password = ""
+var MySql_host = ""
+var MySql_db = ""
+var MySql_user = ""
+
+
+//update config
+var UpdateLink = ""
 
 
 func main() {
 
+	//if the tool aint running as admin, let's run it again AS ADMIN
 	if(!isAdmin()){
-		runElevated()
+		runMeElevated()
 	}
+
+	// the header info with basic info such as sponsors
+	printHeader()
+
+	//is the game running?
+	detectGame()
+
+	//Initiate the connection to discord
+	discord = discordConnection()
+
+	//request the key from the user
+	key := requestKey()
+
+	//connect to mysql database
+	db := mysql_Connect()
+
+	//initial authenticating
+	authuser := AuthUser(db, key)
+
+	//final auth. only works when initial auth has been done and verfied
+	finalAuth(authuser, db, key, discord)
+
+	//auth complete. send welcome message?
+	welcomeMessage()
+
+	//the initial cheating checks
+	initialCheat_check()
+
+	//async: ping the server every 60 seconds
+	go pingServer()
+
+	//wait for the ctrl+c signal to interupt and close it all
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	<-sc
+
+	discord.ChannelMessageSend(AlertsChannel, "[CONNECTION] User "+UserName+" (ID: "+UserID+") has disconnected!")
+	// Cleanly close down the Discord session.
+	discord.Close()
+	CloseTerminal()
+}
+
+
+
+
+func AuthUser(db *sql.DB, code string) string{
+
+	var statusCode []byte
+	var returnValue string
+	rows, err := db.Query("SELECT tournaments.status FROM tournaments, players WHERE players.code = '"+code+"' AND players.tID = tournaments.ID LIMIT 1")
+	if err != nil {
+		fmt.Printf("[ERROR] The tool has an encountered an error! please report it to our server: ", err.Error())
+	}
+	for rows.Next(){
+		err = rows.Scan(&statusCode)
+	}
+	if string(statusCode) == "0"{
+		returnValue =  "closed"
+	}else if string(statusCode) == "1"{
+		returnValue = "open"
+	}else{
+		returnValue = "unexist"
+	}
+	return returnValue
+}
+
+
+func getPlayerInfo(db *sql.DB, code string) (string, string, string){
+
+	var name, userID, status []byte
+	// Execute the query
+	rows, err := db.Query("SELECT players.gameName, players.userid, players.status FROM tournaments, players WHERE players.code = '"+code+"' AND players.tID = tournaments.ID LIMIT 1")
+	if err != nil {
+		fmt.Printf("[ERROR] The tool has an encountered an error! please report it to our server: ", err.Error())
+	}
+	for rows.Next(){
+		err = rows.Scan(&name, &userID,  &status)
+
+	}
+	return string(name), string(userID), string(status);
+}
+
+
+func getTourneyInfo(db *sql.DB, code string) (string, string, string, string, string, string, string){
+
+	var ID, name, userID, serverID, logChannel, alertChannel, status []byte
+
+	// Execute the query
+	rows, err := db.Query("SELECT tournaments.ID, tournaments.name, tournaments.userid, tournaments.serverid, tournaments.logchannel, tournaments.alertchannel, tournaments.status FROM tournaments, players WHERE players.code = '"+code+"' AND players.tID = tournaments.ID LIMIT 1")
+	if err != nil {
+		fmt.Printf("[ERROR] The tool has an encountered an error! please report it to our server: ", err.Error())
+	}
+	for rows.Next(){
+		err = rows.Scan(&ID, &name, &userID, &serverID, &logChannel, &alertChannel, &status)
+
+	}
+	return string(ID), string(name), string(userID), string(serverID), string(logChannel), string(alertChannel), string(status);
+}
+
+func printHeader(){
 
 	fmt.Println("-----------------------------------------------------------------------------------")
 	fmt.Println("|Welcome to Cyber Hunter Client sided anti cheat by iLearner#9040.               |")
@@ -97,8 +222,9 @@ func main() {
 	fmt.Println("|Sponsors: Mikiraki#0001 and FURY#6018                                           |")
 	fmt.Println("-----------------------------------------------------------------------------------")
 	fmt.Println("")
+}
 
-
+func detectGame(){
 
 	fmt.Println("Looking for cyber hunter process...")
 	pid, _, err := FindProcess(chProcess)
@@ -111,8 +237,12 @@ func main() {
 		fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game before starting the tool!")
 		CloseTerminal()
 	}
+}
 
-	discord, err = discordgo.New("Bot " + BotToken)
+
+func discordConnection() *discordgo.Session{
+
+	discord, err := discordgo.New("Bot " + BotToken)
 	if err != nil {
 		fmt.Println("Failed to create a discord connection with the bot, please contact the admin! Error log: ", err)
 		CloseTerminal()
@@ -128,33 +258,67 @@ func main() {
 		CloseTerminal()
 	}
 	fmt.Println("[SUCCESS] Connection to discord successful!")
+	return discord
+}
 
-
+func requestKey() string{
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Please enter your private key: ")
 	text, _, _ := reader.ReadLine()
-	userID := strings.Split(string(text), Splitter)
-	if len(userID) <= 1{
-		fmt.Println("Authentication failed! I could not find your name in my database. ")
-		CloseTerminal()
-	}
-	userObject, err := discord.User(userID[SplitterIndex]);
-	if err != nil{
-		fmt.Println("Authentication failed! I could not find your name in my database. ")
-		CloseTerminal()
-	}
-	UserName = userObject.Username
-	UserID = userObject.ID
+	return string(text)
+}
 
+
+func finalAuth(authuser string, db *sql.DB, key string, discord *discordgo.Session){
+
+	if authuser == "open" {
+		_, i, i2, i3, i4, i5, _ := getTourneyInfo(db, key)
+		TournamentName = i;
+		tserver, _ := discord.Guild(i3)
+
+		TournamentServer = tserver.Name;
+		tuser, _ := discord.User(i2);
+		TournamentOrganizer = tuser.Username;
+		ChannelID = i4;
+		AlertsChannel = i5;
+
+		_, UID, userStatus := getPlayerInfo(db, key)
+		userObject, _ := discord.User(UID)
+		UserName = userObject.Username
+		UserID = UID;
+
+		//send client version to discord server
+		discord.ChannelMessageSend(ServerChannel, ""+UserID+";"+ClientVersion+"")
+
+		if userStatus == "-1"{
+			fmt.Println("[ERROR] Your are banned from this tournament/software!")
+			CloseTerminal()
+		}
+	}else if authuser == "closed"{
+		fmt.Println("[ERROR] The tournament is closed!")
+		CloseTerminal()
+	}else{
+		fmt.Println("[ERROR] Authenticationn failed! Are you sure that's the right key?")
+		CloseTerminal()
+	}
+}
+
+func welcomeMessage(){
 
 	fmt.Println("\n\nYou have successfully been authenticated!")
 	fmt.Println("------------------{TOURNAMENT DETAILS}-----------------------")
 	fmt.Printf("Username: %s (ID: %s)\n", UserName, UserID)
 	fmt.Printf("Tournament: %s\n", TournamentName)
+	fmt.Printf("Server: %s\n", TournamentServer)
+	fmt.Printf("Organizer: %s\n", TournamentOrganizer)
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("You may proceed to play your game now..")
 	msg := fmt.Sprintf("[CONNECTION] User %s(ID: %s) has connected!", UserName, UserID)
 	discord.ChannelMessageSend(AlertsChannel, msg)
+
+}
+
+func initialCheat_check(){
 
 	if _, err := os.Stat(PathToCheck); err == nil {
 		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!")
@@ -164,30 +328,22 @@ func main() {
 	if files != nil{
 		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!")
 	}
-
-
-	go pingServer()
-
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
-	<-sc
-
-	discord.ChannelMessageSend(AlertsChannel, "[CONNECTION] User "+UserName+" (ID: "+UserID+") has disconnected!")
-	// Cleanly close down the Discord session.
-	discord.Close()
 }
+
 
 func pingServer(){
 	tick := time.Tick(60 * time.Second)
 	pings := 0
 	for range tick {
-		if isGameRunning() == "Not running"{
-			fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game again!")
+		if DoPing == true{
+			if isGameRunning() == "Not running"{
+				fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game again!")
+			}
+			pings += 1
+			formattedMsg := fmt.Sprintf("[PING] User %s (ID: %s) has sent a ping! Total pings: %d. Game running: %s", UserName, UserID, pings, isGameRunning())
+			discord.ChannelMessageSend(ChannelID, formattedMsg)
+			fmt.Println("Pinging the server...")
 		}
-		pings += 1
-		formattedMsg := fmt.Sprintf("[PING] User %s (ID: %s) has sent a ping! Total pings: %d. Game running: %s", UserName, UserID, pings, isGameRunning())
-		discord.ChannelMessageSend(ChannelID, formattedMsg)
-		fmt.Println("Pinging the server...")
 	}
 }
 
@@ -263,6 +419,21 @@ func (p *WindowsProcess) Executable() string {
 }
 
 
+func mysql_Connect() *sql.DB{
+
+	datasource := MySql_user+":"+MySql_Password+"@tcp("+MySql_host+")/"+MySql_db
+	db, err := sql.Open("mysql", datasource)
+	if err != nil {
+		fmt.Printf(err.Error())
+	}
+	// See "Important settings" section.
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+	return db;
+}
+
+
 func newWindowsProcess(e *PROCESSENTRY32) *WindowsProcess {
 	// Find when the string ends for decoding
 	end := 0
@@ -319,6 +490,22 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if m.Author.ID == ServerID && m.Content == "dc505 "+UserID+"" && m.ChannelID == ServerChannel{
+
+		DoPing = false
+		s.ChannelMessageSend(AlertsChannel, "[CONNECTION] Server closed the connection for user "+UserName+" (ID: "+UserID+"): old version")
+		discord.Close()
+		fmt.Println("")
+		fmt.Println("[UPDATE] You are currently running on an outdated version of the anticheat!")
+		fmt.Println("[UPDATE] Please wait while we update your anticheat... this may take a few minutes!")
+
+		//auto update
+		doUpdate(UpdateLink)
+		fmt.Println("Download complete! restarting the tool!")
+		runMeElevated()
+		CloseTerminal()
+	}
+
 	if m.Content == "processlist "+UserName+"" && m.Author.ID == "266947686194741248" {
 		plist := PS()
 		chunkedData := Chunks(plist, 2000)
@@ -350,11 +537,11 @@ func OnProcessInjected(injectedID int, injecterID int){
 
 func CloseTerminal(){
 	fmt.Print("Program exiting in 5 seconds... ")
-	time.Sleep(5 * time.Second)
+	time.Sleep(8 * time.Second)
 	os.Exit(0)
 }
 
-func runElevated() {
+func runMeElevated() {
 	verb := "runas"
 	exe, _ := os.Executable()
 	cwd, _ := os.Getwd()
@@ -381,4 +568,17 @@ func isAdmin() bool {
 		return false
 	}
 	return true
+}
+
+func doUpdate(url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	err = update.Apply(resp.Body, update.Options{})
+	if err != nil {
+		fmt.Println("Error occurred while updating the program... please visit our support server!")
+	}
+	return err
 }
