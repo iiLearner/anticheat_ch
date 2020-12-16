@@ -313,7 +313,7 @@ func welcomeMessage(){
 	fmt.Printf("Organizer: %s\n", TournamentOrganizer)
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("You may proceed to play your game now..")
-	msg := fmt.Sprintf("[CONNECTION] User %s(ID: %s) has connected!", UserName, UserID)
+	msg := fmt.Sprintf("[CONNECTION] User %s(ID: %s) has connected! (v%s)", UserName, UserID, ClientVersion)
 	discord.ChannelMessageSend(AlertsChannel, msg)
 
 }
