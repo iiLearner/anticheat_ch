@@ -71,19 +71,23 @@ type Process interface {
 }
 
 var discord *discordgo.Session
-var PathToCheck = ""
-var PathToCheck2 = ""
+var PathToCheck = "*"
+var PathToCheck2 = "*"
+var PathToCheck3 = "*"
+var PathToCheck3_2 = "*"
+
 var BotToken = ""
 var DoPing = true
 
 //game info
-var chProcess = ""
+var chProcess = "client.exe"
 var ProcessID int
 
 //local user info
 var UserID string
 var UserName string
-var ClientVersion = "1.0.0"
+var ClientVersion = "1.0.2"
+var hackReported = false
 
 //server info
 var ServerID = ""
@@ -105,7 +109,7 @@ var MySql_user = ""
 
 
 //update config
-var UpdateLink = ""
+var UpdateLink = "https://i-learner.it/"
 
 
 func main() {
@@ -219,7 +223,7 @@ func printHeader(){
 	fmt.Println("|Welcome to Cyber Hunter Client sided anti cheat by iLearner#9040.               |")
 	fmt.Println("|This tool will allow you easily prove you're not using any kind of third party! |")
 	fmt.Println("|WARNING: YOU MUST KEEP THIS TOOL OPEN THROUGH OUT THE WHOLE TOURNAMENT!         |")
-	fmt.Println("|Sponsors: Mikiraki#0001 and FURY#6018                                           |")
+	fmt.Println("|Sponsors: Mikiraki and FURY                                                     |")
 	fmt.Println("-----------------------------------------------------------------------------------")
 	fmt.Println("")
 }
@@ -288,7 +292,7 @@ func finalAuth(authuser string, db *sql.DB, key string, discord *discordgo.Sessi
 		UserID = UID;
 
 		//send client version to discord server
-		discord.ChannelMessageSend(ServerChannel, ""+UserID+";"+ClientVersion+"")
+		discord.ChannelMessageSend(ServerChannel, ""+UserID+";"+ClientVersion+";"+i3+"")
 
 		if userStatus == "-1"{
 			fmt.Println("[ERROR] Your are banned from this tournament/software!")
@@ -312,7 +316,7 @@ func welcomeMessage(){
 	fmt.Printf("Server: %s\n", TournamentServer)
 	fmt.Printf("Organizer: %s\n", TournamentOrganizer)
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("You may proceed to play your game now..")
+	fmt.Println("Done! Minimize this window and proceed to your game..")
 	msg := fmt.Sprintf("[CONNECTION] User %s(ID: %s) has connected! (v%s)", UserName, UserID, ClientVersion)
 	discord.ChannelMessageSend(AlertsChannel, msg)
 
@@ -320,22 +324,69 @@ func welcomeMessage(){
 
 func initialCheat_check(){
 
-	if _, err := os.Stat(PathToCheck); err == nil {
-		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!")
+	if file, err := os.Stat(PathToCheck); err == nil {
+
+		year, month, day := file.ModTime().Date()
+		lastused := fmt.Sprintf("%d %s %d",year, month, day);
+		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer! (Last used: "+lastused+")")
+		hackReported = true;
 	}
 
 	files, _ := filepath.Glob(PathToCheck2)
 	if files != nil{
-		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!")
+		filename := ""
+		for _, match := range files {
+			filename = match;
+			break;
+		}
+		file, _ := os.Stat(filename);
+		year, month, day := file.ModTime().Date()
+		lastused := fmt.Sprintf("%d %s %d",year, month, day);
+		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!! (Last used: "+lastused+")")
+		hackReported = true;
 	}
+
+	files2, _ := filepath.Glob(PathToCheck3)
+	if files2 != nil{
+		filename := ""
+		for _, match := range files2 {
+			filename = match;
+			break;
+		}
+		file, _ := os.Stat(filename);
+		year, month, day := file.ModTime().Date()
+		lastused := fmt.Sprintf("%d %s %d",year, month, day);
+		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
+		hackReported = true;
+	}
+
+	files3, _ := filepath.Glob(PathToCheck3_2)
+	if files3 != nil{
+		filename := ""
+		for _, match := range files3 {
+			filename = match;
+			break;
+		}
+		file, _ := os.Stat(filename);
+		year, month, day := file.ModTime().Date()
+		lastused := fmt.Sprintf("%d %s %d",year, month, day);
+		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
+		hackReported = true;
+	}
+
+
+
 }
-
-
 func pingServer(){
 	tick := time.Tick(60 * time.Second)
 	pings := 0
 	for range tick {
 		if DoPing == true{
+
+			if hackReported==false {
+				initialCheat_check();
+			}
+
 			if isGameRunning() == "Not running"{
 				fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game again!")
 			}
