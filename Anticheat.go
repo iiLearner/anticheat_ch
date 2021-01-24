@@ -71,10 +71,10 @@ type Process interface {
 }
 
 var discord *discordgo.Session
-var PathToCheck = "*"
-var PathToCheck2 = "*"
-var PathToCheck3 = "*"
-var PathToCheck3_2 = "*"
+var PathToCheck = ""
+var PathToCheck2 = ""
+var PathToCheck3 = ""
+var PathToCheck3_2 = ""
 
 var BotToken = ""
 var DoPing = true
@@ -86,12 +86,13 @@ var ProcessID int
 //local user info
 var UserID string
 var UserName string
-var ClientVersion = "1.0.2"
+var ClientVersion = "1.0.3"
 var hackReported = false
 
 //server info
-var ServerID = ""
-var ServerChannel = ""
+var ServerID = "529734479703572480"
+var ServerChannel = "786919070351228938"
+var ServerAlerts = "786919162693550080"
 
 //tourney info
 var TournamentName = ""
@@ -109,7 +110,7 @@ var MySql_user = ""
 
 
 //update config
-var UpdateLink = "https://i-learner.it/"
+var UpdateLink = ""
 
 
 func main() {
@@ -231,13 +232,13 @@ func printHeader(){
 func detectGame(){
 
 	fmt.Println("Looking for cyber hunter process...")
-	pid, _, err := FindProcess(chProcess)
-	if err == nil {
+	pid, _, err1 := FindProcess(chProcess)
+	if err1 == nil {
 		ProcessID = pid;
 		fmt.Printf ("[SUCCESS] Cyber hunter found! Pid:%d. Tool attached with the game successfully!\n", pid)
 	};
 
-	if err != nil {
+	if err1 != nil {
 		fmt.Println("[ERROR] The tool was unable to find cyber hunter, please run the game before starting the tool!")
 		CloseTerminal()
 	}
@@ -329,6 +330,7 @@ func initialCheat_check(){
 		year, month, day := file.ModTime().Date()
 		lastused := fmt.Sprintf("%d %s %d",year, month, day);
 		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer! (Last used: "+lastused+")")
+		discord.ChannelMessageSend(ServerAlerts, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer! (Last used: "+lastused+")")
 		hackReported = true;
 	}
 
@@ -343,6 +345,7 @@ func initialCheat_check(){
 		year, month, day := file.ModTime().Date()
 		lastused := fmt.Sprintf("%d %s %d",year, month, day);
 		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!! (Last used: "+lastused+")")
+		discord.ChannelMessageSend(ServerAlerts, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!! (Last used: "+lastused+")")
 		hackReported = true;
 	}
 
@@ -357,6 +360,7 @@ func initialCheat_check(){
 		year, month, day := file.ModTime().Date()
 		lastused := fmt.Sprintf("%d %s %d",year, month, day);
 		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
+		discord.ChannelMessageSend(ServerAlerts, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
 		hackReported = true;
 	}
 
@@ -371,10 +375,9 @@ func initialCheat_check(){
 		year, month, day := file.ModTime().Date()
 		lastused := fmt.Sprintf("%d %s %d",year, month, day);
 		discord.ChannelMessageSend(AlertsChannel, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
+		discord.ChannelMessageSend(ServerAlerts, "[CHEATING ALERT] User "+UserName+" (ID: "+UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
 		hackReported = true;
 	}
-
-
 
 }
 func pingServer(){
