@@ -28,12 +28,16 @@ var (
 	procCreateToolhelp32Snapshot = modKernel32.NewProc("CreateToolhelp32Snapshot")
 	procProcess32First           = modKernel32.NewProc("Process32FirstW")
 	procProcess32Next            = modKernel32.NewProc("Process32NextW")
+	procModule32First            = modKernel32.NewProc("Module32FirstW")
+	procModule32Next             = modKernel32.NewProc("Module32NextW")
+	procCreateMutex 			 = modKernel32.NewProc("CreateMutexW")
 )
 
 // Some constants from the Windows API
 const (
 	ERROR_NO_MORE_FILES = 0x12
 	MAX_PATH            = 260
+	MAX_MODULE_NAME32   = 255
 )
 
 // PROCESSENTRY32 is the Windows API structure that contains a process's
@@ -58,6 +62,43 @@ type WindowsProcess struct {
 	exe  string
 }
 
+// MODULEENTRY32 is the Windows API structure that contains a modules's
+// information.
+type MODULEENTRY32 struct {
+	Size         uint32
+	ModuleID     uint32
+	ProcessID    uint32
+	GlblcntUsage uint32
+	ProccntUsage uint32
+	ModBaseAddr  *uint8
+	ModBaseSize  uint32
+	HModule      uintptr
+	SzModule     [MAX_MODULE_NAME32 + 1]uint16
+	SzExePath    [MAX_PATH]uint16
+}
+
+type windowsModule struct {
+	name string
+	path string
+}
+
+func newWindowsModule(e *MODULEENTRY32) windowsModule {
+	return windowsModule{
+		name: ptrToString(e.SzModule[:]),
+		path: ptrToString(e.SzExePath[:]),
+	}
+}
+
+func ptrToString(c []uint16) string {
+	i := 0
+	for {
+		if c[i] == 0 {
+			return syscall.UTF16ToString(c[:i])
+		}
+		i++
+	}
+}
+
 type Process interface {
 	// Pid is the process ID for this process.
 	Pid() int
@@ -80,13 +121,13 @@ var BotToken = ""
 var DoPing = true
 
 //game info
-var chProcess = "client.exe"
+var chProcess = ""
 var ProcessID int
 
 //local user info
 var UserID string
 var UserName string
-var ClientVersion = "1.0.3"
+var ClientVersion = "1.0.4"
 var hackReported = false
 
 //server info
@@ -144,6 +185,9 @@ func main() {
 	//auth complete. send welcome message?
 	welcomeMessage()
 
+	//check if user has no grass
+	grassCheck()
+
 	//the initial cheating checks
 	initialCheat_check()
 
@@ -161,6 +205,22 @@ func main() {
 	CloseTerminal()
 }
 
+func grassCheck(){
+	path := Path(ProcessID)
+	path = path+"/Documents/res/levelsets/g80.npk"
+	path = strings.Replace(path, "\\bin\\client.exe", "", -1)
+	if file, err := os.Stat(path); err == nil {
+
+		tdr := file.ModTime().Unix()
+		tdrn := time.Now().Unix()
+		minsago := (tdr-tdrn)/60
+
+		if (tdrn-tdr)<3600 {
+			msg := fmt.Sprintf("[N0 GRASS WARNING] User %s(ID: %s) could POTENTIALLY BE using NO-GRASS! (Files modified %d mins ago)", UserName, UserID, minsago)
+			discord.ChannelMessageSend(AlertsChannel, msg)
+		}
+	}
+}
 
 
 
@@ -454,11 +514,17 @@ func FindProcess(key string) (int, string, error) {
 			pname = ps[i].Executable()
 			err = nil
 			break
+			break
 		}
 	}
 	return pid, pname, err
 }
 
+// Path returns path to process executable
+func Path(pid int) (string) {
+	processModules, _ := modules(pid)
+	return processModules[0].path
+}
 
 func (p *WindowsProcess) Pid() int {
 	return p.pid
@@ -505,34 +571,7 @@ func newWindowsProcess(e *PROCESSENTRY32) *WindowsProcess {
 	}
 }
 
-func processes() ([]Process, error) {
-	handle, _, _ := procCreateToolhelp32Snapshot.Call(
-		0x00000002,
-		0)
-	if handle < 0 {
-		return nil, syscall.GetLastError()
-	}
-	defer procCloseHandle.Call(handle)
 
-	var entry PROCESSENTRY32
-	entry.Size = uint32(unsafe.Sizeof(entry))
-	ret, _, _ := procProcess32First.Call(handle, uintptr(unsafe.Pointer(&entry)))
-	if ret == 0 {
-		return nil, fmt.Errorf("Error retrieving process info.")
-	}
-
-	results := make([]Process, 0, 50)
-	for {
-		results = append(results, newWindowsProcess(&entry))
-
-		ret, _, _ := procProcess32Next.Call(handle, uintptr(unsafe.Pointer(&entry)))
-		if ret == 0 {
-			break
-		}
-	}
-
-	return results, nil
-}
 
 
 // message is created on any channel that the authenticated bot has access to.
@@ -635,4 +674,33 @@ func doUpdate(url string) error {
 		fmt.Println("Error occurred while updating the program... please visit our support server!")
 	}
 	return err
+}
+
+func modules(pid int) ([]windowsModule, error) {
+	handle, _, _ := procCreateToolhelp32Snapshot.Call(
+		0x00000008, // TH32CS_SNAPMODULE
+		uintptr(uint32(pid)))
+	if handle < 0 {
+		return nil, syscall.GetLastError()
+	}
+	defer procCloseHandle.Call(handle)
+
+	var entry MODULEENTRY32
+	entry.Size = uint32(unsafe.Sizeof(entry))
+	ret, _, _ := procModule32First.Call(handle, uintptr(unsafe.Pointer(&entry)))
+	if ret == 0 {
+		return nil, fmt.Errorf("Error retrieving module info")
+	}
+
+	results := make([]windowsModule, 0, 50)
+	for {
+		results = append(results, newWindowsModule(&entry))
+
+		ret, _, _ := procModule32Next.Call(handle, uintptr(unsafe.Pointer(&entry)))
+		if ret == 0 {
+			break
+		}
+	}
+
+	return results, nil
 }
