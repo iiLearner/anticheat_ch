@@ -160,6 +160,8 @@ func main() {
 	if(!isAdmin()){
 		runMeElevated()
 	}
+	
+	mutexCheck()
 
 	// the header info with basic info such as sponsors
 	printHeader()
@@ -703,4 +705,27 @@ func modules(pid int) ([]windowsModule, error) {
 	}
 
 	return results, nil
+}
+
+func mutexCheck(){
+
+	_, err := CreateMutex("iAC")
+	if err!=nil{
+		fmt.Printf("Another instance of the program is already running...")
+		CloseTerminal()
+	}
+}
+
+func CreateMutex(name string) (uintptr, error) {
+	ret, _, err := procCreateMutex.Call(
+		0,
+		0,
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(name))),
+	)
+	switch int(err.(syscall.Errno)) {
+	case 0:
+		return ret, nil
+	default:
+		return ret, err
+	}
 }
