@@ -9,6 +9,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/inconshreveable/go-update"
 	"github.com/mitchellh/go-ps"
+	"github.com/twinj/uuid"
 	"golang.org/x/sys/windows"
 	"net/http"
 	"os"
@@ -112,22 +113,22 @@ type Process interface {
 }
 
 var discord *discordgo.Session
-var PathToCheck = ""
-var PathToCheck2 = ""
-var PathToCheck3 = ""
-var PathToCheck3_2 = ""
+var vEnv1 = ""
+var vEnv2 = ""
+var vEnv3 = ""
+var vEnv32 = ""
 
 var BotToken = ""
 var DoPing = true
 
 //game info
-var chProcess = ""
+var chProcess = "client.exe"
 var ProcessID int
 
 //local user info
 var UserID string
 var UserName string
-var ClientVersion = "1.0.4"
+var ClientVersion = "1.0.5"
 var hackReported = false
 
 //server info
@@ -157,10 +158,10 @@ var UpdateLink = ""
 func main() {
 
 	//if the tool aint running as admin, let's run it again AS ADMIN
-	if(!isAdmin()){
+	if !isAdmin() {
 		runMeElevated()
 	}
-	
+
 	mutexCheck()
 
 	// the header info with basic info such as sponsors
@@ -169,14 +170,20 @@ func main() {
 	//is the game running?
 	detectGame()
 
+	//connect to mysql database
+	db := mysql_Connect()
+
+	//load config from db
+	loadConfig(db)
+
 	//Initiate the connection to discord
 	discord = discordConnection()
 
+	//check update
+	checkUpdate()
+
 	//request the key from the user
 	key := requestKey()
-
-	//connect to mysql database
-	db := mysql_Connect()
 
 	//initial authenticating
 	authuser := AuthUser(db, key)
@@ -207,6 +214,34 @@ func main() {
 	CloseTerminal()
 }
 
+
+func checkUpdate()  {
+
+	//send client version to discord server
+	UserID = uuid.NewV4().String()
+	discord.ChannelMessageSend(ServerChannel, ""+UserID+";"+ClientVersion+"")
+}
+
+func loadConfig(db *sql.DB)  {
+
+	var token, path1, path2, path3, path32 []byte
+	// Execute the query
+	rows, err := db.Query("SELECT token, path1, path2, path3, path3_2 FROM settings WHERE ID = 1")
+	if err != nil {
+		fmt.Printf("[ERROR] The tool has an encountered an error! please report it to our server: ", err.Error())
+		CloseTerminal()
+	}
+	for rows.Next(){
+		err = rows.Scan(&token, &path1,  &path2, &path3, &path32)
+	}
+	BotToken = string(token)
+	vEnv1 = string(path1)
+	vEnv2 = string(path2)
+	vEnv3 = string(path3)
+	vEnv32 = string(path32)
+}
+
+
 func grassCheck(){
 	path := Path(ProcessID)
 	path = path+"/Documents/res/levelsets/g80.npk"
@@ -223,7 +258,6 @@ func grassCheck(){
 		}
 	}
 }
-
 
 
 func AuthUser(db *sql.DB, code string) string{
@@ -354,9 +388,6 @@ func finalAuth(authuser string, db *sql.DB, key string, discord *discordgo.Sessi
 		UserName = userObject.Username
 		UserID = UID;
 
-		//send client version to discord server
-		discord.ChannelMessageSend(ServerChannel, ""+UserID+";"+ClientVersion+";"+i3+"")
-
 		if userStatus == "-1"{
 			fmt.Println("[ERROR] Your are banned from this tournament/software!")
 			CloseTerminal()
@@ -387,7 +418,7 @@ func welcomeMessage(){
 
 func initialCheat_check(){
 
-	if file, err := os.Stat(PathToCheck); err == nil {
+	if file, err := os.Stat(vEnv1); err == nil {
 
 		year, month, day := file.ModTime().Date()
 		lastused := fmt.Sprintf("%d %s %d",year, month, day);
@@ -396,7 +427,7 @@ func initialCheat_check(){
 		hackReported = true;
 	}
 
-	files, _ := filepath.Glob(PathToCheck2)
+	files, _ := filepath.Glob(vEnv2)
 	if files != nil{
 		filename := ""
 		for _, match := range files {
@@ -411,7 +442,7 @@ func initialCheat_check(){
 		hackReported = true;
 	}
 
-	files2, _ := filepath.Glob(PathToCheck3)
+	files2, _ := filepath.Glob(vEnv3)
 	if files2 != nil{
 		filename := ""
 		for _, match := range files2 {
@@ -426,7 +457,7 @@ func initialCheat_check(){
 		hackReported = true;
 	}
 
-	files3, _ := filepath.Glob(PathToCheck3_2)
+	files3, _ := filepath.Glob(vEnv32)
 	if files3 != nil{
 		filename := ""
 		for _, match := range files3 {
@@ -580,7 +611,6 @@ func newWindowsProcess(e *PROCESSENTRY32) *WindowsProcess {
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// Ignore all messages created by the bot itself
-	// This isn't required in this specific example but it's a good practice.
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
