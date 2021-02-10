@@ -4,5 +4,4 @@ package config
 var DoPing = true
 
 //current client version
-var ClientVersion = "1.0.5"
-
+var ClientVersion = "1.0.6"
