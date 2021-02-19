@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -17,6 +18,26 @@ func RequestKey() string {
 	return string(text)
 }
 
+func CheckCheats(env string, name string)  {
+
+	files4, _ := filepath.Glob(env)
+	if files4 != nil{
+		filename := ""
+		for _, match := range files4 {
+			filename = match
+			break
+		}
+		file, _ := os.Stat(filename)
+		year, month, day := file.ModTime().Date()
+		lastused := fmt.Sprintf("%d %s %d",year, month, day)
+		vars.DiscordGo.ChannelMessageSend(vars.AlertsChannel, "[CHEATING ALERT] User "+vars.UserName+" (ID: "+vars.UserID+") has a cheating software installed on their computer! ("+name+"))")
+		vars.DiscordGo.ChannelMessageSend(config.ServerAlerts, "[CHEATING ALERT] User "+vars.UserName+" (ID: "+vars.UserID+") has a cheating software installed on their computer!!! (Last used: "+lastused+")")
+		vars.HackReported = true
+	}
+
+	
+}
+
 func PingServer() {
 	tick := time.Tick(60 * time.Second)
 	pings := 0
@@ -24,7 +45,7 @@ func PingServer() {
 		if config.DoPing == true {
 
 			if vars.HackReported == false {
-				//InitialCheat_check()
+				InitialcheatCheck()
 			}
 
 			if game.IsGameRunning() == "Not running" {

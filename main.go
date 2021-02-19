@@ -63,7 +63,7 @@ func main() {
 	grass.GrassCheck()
 
 	//the initial cheating checks
-	//anticheat.InitialCheat_check()
+	anticheat.InitialcheatCheck()
 
 	//async: ping the server every 60 seconds
 	go anticheat.PingServer()
