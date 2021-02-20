@@ -56,8 +56,11 @@ func main() {
 	//final auth. only works when initial auth has been done and verfied
 	auth.FinalAuth(authuser, db, key, vars.DiscordGo)
 
+	//user must be in support server
+	check := auth.DiscordCheck()
+
 	//auth complete. send welcome message?
-	message.WelcomeMessage()
+	if check {message.WelcomeMessage()}
 
 	//check if user has no grass
 	grass.GrassCheck()

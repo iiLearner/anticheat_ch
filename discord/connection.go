@@ -17,7 +17,7 @@ func DiscordConnection() *discordgo.Session{
 
 	// Register the messageCreate func as a callback for MessageCreate events.
 	discord.AddHandler(messageCreate)
-	discord.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages)
+	discord.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers)
 	discord.LogLevel = discordgo.LogError
 	err = discord.Open()
 	if err != nil {

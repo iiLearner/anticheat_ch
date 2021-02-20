@@ -2,3 +2,5 @@
 .env
 rsrc_windows_amd64.syso
 config/remote.go
+anticheat_ch.exe
+anticheat_ch.zip
