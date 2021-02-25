@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="af7b7be5-409e-4208-b2d8-05cdae87ad54" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/auth/discordCheck.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/discord/connection.go" beforeDir="false" afterPath="$PROJECT_DIR$/discord/connection.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/anticheat/cheat.go" beforeDir="false" afterPath="$PROJECT_DIR$/anticheat/cheat.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />

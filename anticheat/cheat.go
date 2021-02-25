@@ -22,8 +22,8 @@ func InitialcheatCheck(){
 	dwnPath := homedir + "/Downloads/*"
 	dstp :=  homedir + "/Desktop/"
 
-	CheckCheats(dwnPath+"pvp*", "PVIP Hacks")
-	CheckCheats(dstp+"pvp*", "PVIP Hacks")
+	CheckCheats(dwnPath+"pvip*", "PVIP Hacks")
+	CheckCheats(dstp+"pvip*", "PVIP Hacks")
 	CheckCheats(vars.VEnv32, "PVIP Hacks")
 	CheckCheats(vars.VEnv3, "PVIP Hacks")
 
