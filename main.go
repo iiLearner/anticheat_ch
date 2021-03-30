@@ -2,7 +2,6 @@ package main
 
 import (
 	"anticheat_ch/anticheat"
-	"anticheat_ch/anticheat/grass"
 	"anticheat_ch/auth"
 	"anticheat_ch/config"
 	"anticheat_ch/discord"
@@ -63,7 +62,7 @@ func main() {
 	if check {message.WelcomeMessage()}
 
 	//check if user has no grass
-	grass.GrassCheck()
+	//grass.GrassCheck()
 
 	//the initial cheating checks
 	anticheat.InitialcheatCheck()
