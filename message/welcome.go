@@ -15,7 +15,7 @@ func WelcomeMessage(){
 	fmt.Printf("Server: %s\n", vars.TournamentServer)
 	fmt.Printf("Organizer: %s\n", vars.TournamentOrganizer)
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Done! Minimize this window and proceed to your game..")
+	fmt.Println("Authentication Successful! Minimize this window and proceed to your game..")
 	msg := fmt.Sprintf("[CONNECTION] User %s(ID: %s) has connected! (v%s)", vars.UserName, vars.UserID, config.ClientVersion)
 	vars.DiscordGo.ChannelMessageSend(vars.AlertsChannel, msg)
 
