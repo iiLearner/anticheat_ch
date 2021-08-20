@@ -4,4 +4,5 @@ package vars
 var UserID string
 var UserName string
 var HackReported = false
+var RecoilReported = false
 

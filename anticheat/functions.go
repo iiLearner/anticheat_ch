@@ -1,6 +1,7 @@
 package anticheat
 
 import (
+	"anticheat_ch/anticheat/cheats"
 	"anticheat_ch/config"
 	"anticheat_ch/utils/game"
 	"anticheat_ch/vars"
@@ -46,6 +47,10 @@ func PingServer() {
 
 			if vars.HackReported == false {
 				InitialcheatCheck()
+			}
+
+			if vars.RecoilReported == false {
+				cheats.RecoilCheck()
 			}
 
 			if game.IsGameRunning() == "Not running" {
